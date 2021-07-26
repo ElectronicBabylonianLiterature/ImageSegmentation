@@ -3,3 +3,4 @@ segmentation_data/targets/
 .idea/
 venv/
 .venv/
+__pycache__/
