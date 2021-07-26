@@ -1,8 +1,7 @@
 import pytorch_lightning as pl
-
+import torchmetrics
 from torch import optim, sigmoid
 from torch.nn import BCEWithLogitsLoss
-from torchmetrics.classification import Accuracy, Precision, Recall, F1
 
 from .unet_parts import *
 
@@ -11,6 +10,12 @@ class UNet(pl.LightningModule):
     def __init__(self, n_channels, n_classes, lr, bilinear=True):
         super(UNet, self).__init__()
         self.counter = 1
+        self.accuracyMetric = torchmetrics.Accuracy()
+        self.precisionMetric = torchmetrics.Precision()
+        self.recallMetric = torchmetrics.Recall()
+        self.f1Metric = torchmetrics.F1()
+        self.rocMetric = torchmetrics.ROC()
+        self.aucMetric = torchmetrics.AUC()
 
         self.lr = lr
         self.loss = BCEWithLogitsLoss()
@@ -45,7 +50,8 @@ class UNet(pl.LightningModule):
         return logits
 
     def predict_step(self, batch, batch_idx, dataloader_idx = None):
-        return (sigmoid(self(batch)) > 0.1).float()
+        x, _ = batch
+        return sigmoid(self(x))
 
 
     def configure_optimizers(self):
@@ -56,26 +62,46 @@ class UNet(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
+
         loss = self.loss(y_hat, y)
-        self.log("loss", loss, on_epoch=True)
+        self.log("Loss/train", loss, on_step=False, on_epoch=True)
+
+        acc = self.calculate_metric(batch, self.accuracyMetric, batch_idx)
+        recall = self.calculate_metric(batch, self.recallMetric, batch_idx)
+        precision = self.calculate_metric(batch, self.precisionMetric, batch_idx)
+        f1 = self.calculate_metric(batch, self.f1Metric, batch_idx)
+        self.log("Performance/Train", {"acc": acc, "recall": recall, "precision": precision, "f1": f1}, on_step=False, on_epoch=True)
+
         return loss
+
+    def calculate_metric(self, batch, metric, batch_idx=None):
+        x, y = batch
+        prediction = self.predict_step((x,None), batch_idx)
+        return metric(prediction, y.int())
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
         val_loss = self.loss(y_hat, y)
-        self.log("val_loss", val_loss)
+        self.log("Loss/val", val_loss)
         return val_loss
 
     def test_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
         loss = self.loss(y_hat, y)
-        self.log("test_loss", loss)
-        prediction = self.predict_step(x, batch_idx)[0]
+        self.log("Loss/test", loss)
 
-        tensorboard = self.logger.experiment
-        tensorboard.add_image("mask/true", y[0], self.counter)
-        tensorboard.add_image("mask/test", prediction, self.counter)
-        self.counter = self.counter + 1
+        acc = self.calculate_metric(batch, self.accuracyMetric, batch_idx)
+        recall = self.calculate_metric(batch, self.recallMetric, batch_idx)
+        precision = self.calculate_metric(batch, self.precisionMetric, batch_idx)
+        f1 = self.calculate_metric(batch, self.f1Metric, batch_idx)
+        self.log("Performance/Test", {"acc": acc, "recall": recall, "precision": precision, "f1": f1}, on_step=False,
+                 on_epoch=True)
+
+        predicions = self.predict_step((x,None), batch_idx)
+        self.logger.experiment.add_image(f"test/mask-{batch_idx}/true", y[0])
+        self.logger.experiment.add_image(f"test/mask-{batch_idx}/prediction", predicions[0])
+        self.logger.experiment.add_pr_curve("precision-recall curve", y[0], predicions[0])
+
         return loss
