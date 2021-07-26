@@ -1,2 +1,5 @@
-segmentation_data/images
-segmentation_data/targets
+segmentation_data/images/
+segmentation_data/targets/
+.idea/
+venv/
+.venv/
