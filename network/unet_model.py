@@ -61,7 +61,18 @@ class UNet(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         x, y, _ = batch
-        y_hat = self(x)
+
+        x1 = self.inc(x)
+        x2 = self.down1(x1)
+        x3 = self.down2(x2)
+        x4 = self.down3(x3)
+        x5 = self.down4(x4)
+        x = self.up1(x5, x4)
+        x = self.up2(x, x3)
+        x = self.up3(x, x2)
+        x = self.up4(x, x1)
+        y_hat = self.outc(x)
+
 
         loss = self.loss(y_hat, y)
         self.log("Loss/train", loss, on_step=False, on_epoch=True)

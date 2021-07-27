@@ -36,20 +36,20 @@ def calculate_mean_and_std(training_images_path, resize):
 
 
 
-resize = (resizeDict(1000, 1), resizeDict(2000, 1.5), resizeDict(4000, 3),  resizeDict(float("inf"), 4))
+resize = (resizeDict(1000, 1), resizeDict(2000, 2), resizeDict(3000, 3), resizeDict(4000, 4),  resizeDict(float("inf"), 5))
 
 mean, std = calculate_mean_and_std(training_images_path=f"{data_root}/train.txt", resize=resize)
 
 
 randomElastic = transforms.RandomApply([ElasticTransform()], 0.2)
-randomAffine = transforms.RandomApply([transforms.RandomAffine(degrees=(-15, 15), scale=(0.7, 1.2))], 0.3)
+randomAffine = transforms.RandomApply([transforms.RandomAffine(degrees=(-15, 15), scale=(0.7, 1))], 0.3)
 transform = transforms.Compose([randomAffine, randomElastic])
 normalize= transforms.Normalize(mean, std)
 
 
 hparams = {
     "batchSize": 1,
-    "epochs": 350,
+    "epochs": 500,
     "lr": 0.001,
     "resizeImages": resize,
     "transformations": transform,
@@ -84,7 +84,7 @@ model = UNet(n_channels=1, n_classes=1, lr=hparams["lr"])
 
 
 logger.log_graph(model)
-trainer = pl.Trainer(gpus=1, max_epochs=hparams["epochs"], logger=logger)
+trainer = pl.Trainer(gpus=1, max_epochs=hparams["epochs"], logger=logger, move_metrics_to_cpu=True, precision=16)
 logger.log_hyperparams(hparams)
 trainer.fit(model, DataLoader(train_data, batch_size=hparams["batchSize"], num_workers=4))
 
