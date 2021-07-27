@@ -1,5 +1,6 @@
 segmentation_data/images/
 segmentation_data/targets/
+backup_logs/
 .idea/
 venv/
 .venv/
