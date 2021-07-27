@@ -77,11 +77,16 @@ class UNet(pl.LightningModule):
         loss = self.loss(y_hat, y)
         self.log("Loss/train", loss, on_step=False, on_epoch=True)
 
+        """
+        #takes around 1GB VRAM
         acc = self.calculate_metric(batch, self.accuracyMetric, batch_idx)
         recall = self.calculate_metric(batch, self.recallMetric, batch_idx)
         precision = self.calculate_metric(batch, self.precisionMetric, batch_idx)
         f1 = self.calculate_metric(batch, self.f1Metric, batch_idx)
         self.log_dict({"Accuracy/train": acc, "Recall/train": recall, "Precision/train": precision, "F1/train": f1}, on_step=False, on_epoch=True)
+        """
+
+
 
         return loss
 
