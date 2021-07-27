@@ -70,7 +70,7 @@ class UNet(pl.LightningModule):
         recall = self.calculate_metric(batch, self.recallMetric, batch_idx)
         precision = self.calculate_metric(batch, self.precisionMetric, batch_idx)
         f1 = self.calculate_metric(batch, self.f1Metric, batch_idx)
-        self.log("Performance/Train", {"acc": acc, "recall": recall, "precision": precision, "f1": f1}, on_step=False, on_epoch=True)
+        self.log_dict({"Accuracy/train": acc, "Recall/train": recall, "Precision/train": precision, "F1/train": f1}, on_step=False, on_epoch=True)
 
         return loss
 
@@ -96,10 +96,9 @@ class UNet(pl.LightningModule):
         recall = self.calculate_metric(batch, self.recallMetric, batch_idx)
         precision = self.calculate_metric(batch, self.precisionMetric, batch_idx)
         f1 = self.calculate_metric(batch, self.f1Metric, batch_idx)
-        self.log("Performance/Test", {"acc": acc, "recall": recall, "precision": precision, "f1": f1}, on_step=False,
-                 on_epoch=True)
+        self.log_dict({"Accuracy/test": acc, "Recall/test": recall, "Precision/test": precision, "F1/test": f1}, on_step=False, on_epoch=True)
 
-        predicions = self.predict_step((x,None), batch_idx)
+        predicions = self.predict_step((x, None), batch_idx)
         self.logger.experiment.add_image(f"test/mask-{batch_idx}/true", y[0])
         self.logger.experiment.add_image(f"test/mask-{batch_idx}/prediction", predicions[0])
         self.logger.experiment.add_pr_curve("precision-recall curve", y[0], predicions[0])

@@ -14,10 +14,11 @@ SEG_LABELS_LIST1 = [
 
 
 class SegmentationDataset(Dataset):
-    def __init__(self, image_paths_file, resize, transform=None):
+    def __init__(self, image_paths_file, resize,  binarization_threshold, transform=None):
         self.root_dir_name = os.path.dirname(image_paths_file)
         self.transform = transform
         self.resize = resize
+        self.binarization_threshold = binarization_threshold
 
         with open(image_paths_file) as f:
             self.image_names = f.read().splitlines()
@@ -37,21 +38,36 @@ class SegmentationDataset(Dataset):
         else:
             raise TypeError("Invalid argument type.")
 
+    def resizeImage(self, image, resizing_params):
+        x, y = image.size
+        for i in range(0, len(resizing_params) - 1):
+            scaling = resizing_params[i+1]["rescale"]
+            if resizing_params[i]["maxValue"] < max(x, y) < resizing_params[i+1]["maxValue"]:
+                return image.resize((int(x / scaling), int(y / scaling)))
+            elif max(x, y) > resizing_params[len(resizing_params) -1]["maxValue"]:
+                scaling = resizing_params[len(resizing_params) - 1]["rescale"]
+                return image.resize((int(x / scaling), int(y / scaling)))
+        return image
+
+
 
     def get_item_from_index(self, index):
         img_id = self.image_names[index]
 
-        img = Image.open(os.path.join(self.root_dir_name, "images", f"{img_id}.png")).resize(self.resize)
+        img = Image.open(os.path.join(self.root_dir_name, "images", f"{img_id}.png"))
+        img = self.resizeImage(img, self.resize)
         toTensor = transforms.ToTensor()
         img = toTensor(img)
 
-        target = Image.open(os.path.join(self.root_dir_name, "targets", f"{img_id}_GT0.png")).resize(self.resize).convert("L").point(lambda p: 0 if p < 50 else 1)
+        target = Image.open(os.path.join(self.root_dir_name, "targets", f"{img_id}_GT0.png")).convert("L")
+        target = self.resizeImage(target, self.resize).point(lambda p: 0 if p < self.binarization_threshold * 255 else 1)
         target = np.array(target, dtype=np.int)
         target = np.array([target])
         target_labels = torch.from_numpy(target.copy()).float()
-
+        result = torch.stack([img, target_labels])
         if self.transform:
-            img = self.transform(img)
-            target_labels = self.transform(target_labels)
+            result = self.transform(result)
+        resultCopy = result.detach().clone()
+        return resultCopy[0], resultCopy[1], img_id
 
-        return img, target_labels
+
