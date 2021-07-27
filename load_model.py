@@ -6,6 +6,7 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
+from main import resize
 from network.unet_model import UNet
 from utils.dataset import SegmentationDataset
 
@@ -21,7 +22,7 @@ hparams = yaml.load(open(hparams_yaml))
 root = os.path.dirname(os.path.abspath(__file__))
 data_root = os.path.join(root, 'segmentation_data')
 
-test_data = SegmentationDataset(image_paths_file=f"{data_root}/test.txt", resize=hparams["resizeImages"], binarization_threshold=hparams["binarization_threshold"], normalize=transforms.Normalize(hparams["mean"], hparams["std"]))
+test_data = SegmentationDataset(image_paths_file=f"{data_root}/test.txt", binarization_threshold=hparams["binarization_threshold"], transform=resize, normalize=transforms.Normalize(hparams["mean"], hparams["std"]))
 test_loader = DataLoader(test_data, batch_size=1, shuffle=False)
 
 

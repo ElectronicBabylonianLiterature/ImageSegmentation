@@ -6,8 +6,8 @@ from utils.dataset import SegmentationDataset
 def resizeDict(maxValue, rescale):
     return {"maxValue": maxValue, "rescale": rescale}
 
-def calculate_mean_and_std(training_images_path, resize):
-    train_data = SegmentationDataset(image_paths_file=training_images_path, resize=resize, binarization_threshold=0.1)
+def calculate_mean_and_std(training_images_path, transform):
+    train_data = SegmentationDataset(image_paths_file=training_images_path, transform=transform, binarization_threshold=0.1)
 
     size = len(train_data)
     meanTotal = 0
