@@ -49,7 +49,8 @@ class UNet(pl.LightningModule):
 
     def configure_optimizers(self):
         optimizer = optim.RMSprop(self.parameters(), lr=self.lr, weight_decay=1e-8, momentum=0.9)
-        return optimizer
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer)
+        return {"optimizer": optimizer, "lr_scheduler": {"scheduler": scheduler, "monitor": "Loss/val"}}
 
     def training_step(self, batch, batch_idx):
         x, y, _ = batch
