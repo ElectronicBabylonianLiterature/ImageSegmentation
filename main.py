@@ -34,15 +34,15 @@ hparams = {
     "epochs": 500,
     "lr": 0.001,
     "resizeImages": resize,
-    "transformations": transform,
+    "transformations": str(transform) + " Normalize(mean, std)",
     "mean": mean.item(),
     "std": std.item(),
     "binarization_threshold": 0.1,
 }
 
 
-train_data = SegmentationDataset(image_paths_file=f"{data_root}/train.txt",resize=hparams["resizeImages"], binarization_threshold=hparams["binarization_threshold"], transform=hparams["transformations"], normalize=transforms.Normalize(mean, std))
-test_data = SegmentationDataset(image_paths_file=f"{data_root}/test.txt", resize=hparams["resizeImages"], binarization_threshold=hparams["binarization_threshold"], normalize=transforms.Normalize(mean, std))
+train_data = SegmentationDataset(image_paths_file=f"{data_root}/train.txt",resize=hparams["resizeImages"], binarization_threshold=hparams["binarization_threshold"], transform=transform, normalize=normalize)
+test_data = SegmentationDataset(image_paths_file=f"{data_root}/test.txt", resize=hparams["resizeImages"], binarization_threshold=hparams["binarization_threshold"], normalize=normalize)
 
 
 hparams["trainSize"] = len(train_data)
@@ -69,7 +69,6 @@ if __name__ == "__main__":
     trainer.fit(model, DataLoader(train_data, batch_size=hparams["batchSize"], num_workers=8))
 
     trainer.test(model, DataLoader(test_data, batch_size=1, shuffle=False))
-    torch.save(model.state_dict(), f"./models/u-net.pt")
 
     print("Done")
 
