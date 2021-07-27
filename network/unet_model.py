@@ -50,7 +50,7 @@ class UNet(pl.LightningModule):
         return logits
 
     def predict_step(self, batch, batch_idx, dataloader_idx = None):
-        x, _ = batch
+        x, _, _ = batch
         return sigmoid(self(x))
 
 
@@ -60,7 +60,7 @@ class UNet(pl.LightningModule):
         return {"optimizer": optimizer, "scheduler": scheduler}
 
     def training_step(self, batch, batch_idx):
-        x, y = batch
+        x, y, _ = batch
         y_hat = self(x)
 
         loss = self.loss(y_hat, y)
@@ -75,19 +75,19 @@ class UNet(pl.LightningModule):
         return loss
 
     def calculate_metric(self, batch, metric, batch_idx=None):
-        x, y = batch
-        prediction = self.predict_step((x,None), batch_idx)
+        x, y, _ = batch
+        prediction = self.predict_step((x,None, None), batch_idx)
         return metric(prediction, y.int())
 
     def validation_step(self, batch, batch_idx):
-        x, y = batch
+        x, y, _ = batch
         y_hat = self(x)
         val_loss = self.loss(y_hat, y)
         self.log("Loss/val", val_loss)
         return val_loss
 
     def test_step(self, batch, batch_idx):
-        x, y = batch
+        x, y, img_id = batch
         y_hat = self(x)
         loss = self.loss(y_hat, y)
         self.log("Loss/test", loss)
@@ -98,9 +98,9 @@ class UNet(pl.LightningModule):
         f1 = self.calculate_metric(batch, self.f1Metric, batch_idx)
         self.log_dict({"Accuracy/test": acc, "Recall/test": recall, "Precision/test": precision, "F1/test": f1}, on_step=False, on_epoch=True)
 
-        predicions = self.predict_step((x, None), batch_idx)
-        self.logger.experiment.add_image(f"test/mask-{batch_idx}/true", y[0])
-        self.logger.experiment.add_image(f"test/mask-{batch_idx}/prediction", predicions[0])
+        predicions = self.predict_step((x, None, None), batch_idx)
+        self.logger.experiment.add_image(f"test/mask-{img_id}/true", y[0],)
+        self.logger.experiment.add_image(f"test/mask-{img_id}/prediction", predicions[0])
         self.logger.experiment.add_pr_curve("precision-recall curve", y[0], predicions[0])
 
         return loss

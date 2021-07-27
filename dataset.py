@@ -14,11 +14,12 @@ SEG_LABELS_LIST1 = [
 
 
 class SegmentationDataset(Dataset):
-    def __init__(self, image_paths_file, resize,  binarization_threshold, transform=None):
+    def __init__(self, image_paths_file, resize,  binarization_threshold, transform=None, normalize=None):
         self.root_dir_name = os.path.dirname(image_paths_file)
         self.transform = transform
         self.resize = resize
         self.binarization_threshold = binarization_threshold
+        self.normalize= normalize
 
         with open(image_paths_file) as f:
             self.image_names = f.read().splitlines()
@@ -67,7 +68,6 @@ class SegmentationDataset(Dataset):
         result = torch.stack([img, target_labels])
         if self.transform:
             result = self.transform(result)
-        resultCopy = result.detach().clone()
-        return resultCopy[0], resultCopy[1], img_id
+        return self.normalize(result[0]) if self.normalize else result[0], result[1], img_id
 
 
