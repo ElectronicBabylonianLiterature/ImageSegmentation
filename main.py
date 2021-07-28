@@ -22,14 +22,14 @@ resize = transforms.Resize(size=800)
 mean, std = calculate_mean_and_std(training_images_path=f"{data_root}/train.txt", transform=resize)
 
 
-random_affine = transforms.RandomApply([transforms.RandomAffine(degrees=(-20, 20), scale=(1, 2))], 0.5)
-transform = transforms.Compose([resize, random_affine])
+#random_affine = transforms.RandomApply([transforms.RandomAffine(degrees=(-20, 20), scale=(1, 2))], 0.5)
+transform = transforms.Compose([resize])
 normalize = transforms.Normalize(mean, std)
 
 
 hparams = {
     "batchSize": 1,
-    "epochs": 10,
+    "epochs": 500,
     "lr": 0.001,
     "resizeImages": resize,
     "transformations": str(transform) + " Normalize(mean, std)",
@@ -59,7 +59,7 @@ def train():
     checkpoint_loss = ModelCheckpoint(monitor='Loss/val', filename="best_val_loss-epoch={epoch:02d}-val_loss=val_loss{val/loss:.2f}",auto_insert_metric_name=False)
     checkpoint_last_epoch = ModelCheckpoint(filename="epoch={epoch:02d}-val_loss=val_loss{val/loss:.2f}",auto_insert_metric_name=False)
     model = UNet(1, 1, hparams["lr"])
-    trainer = pl.Trainer(gpus=1, max_epochs=hparams["epochs"], logger=logger, precision=16, move_metrics_to_cpu=True, callbacks=[checkpoint_loss, checkpoint_last_epoch])
+    trainer = pl.Trainer(accumulate_grad_batches=8, gpus=1, max_epochs=hparams["epochs"], logger=logger, precision=16, callbacks=[checkpoint_loss, checkpoint_last_epoch])
     logger.log_hyperparams(hparams)
     trainer.fit(model, DataLoader(train_data, batch_size=hparams["batchSize"], num_workers=8, pin_memory=True), DataLoader(val_data, batch_size=hparams["batchSize"], num_workers=8, pin_memory=True))
 

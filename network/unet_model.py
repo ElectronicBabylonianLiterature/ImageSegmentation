@@ -66,7 +66,6 @@ class UNet(pl.LightningModule):
         x = self.up4(x, x1)
         y_hat = self.outc(x)
 
-
         loss = self.loss(y_hat, y)
         self.log("Loss/train", loss, on_step=False, on_epoch=True)
 
