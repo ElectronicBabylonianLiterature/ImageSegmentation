@@ -1,10 +1,9 @@
+import shutil
+
 import torch
 
 from utils.dataset import SegmentationDataset
 
-
-def resizeDict(maxValue, rescale):
-    return {"maxValue": maxValue, "rescale": rescale}
 
 def calculate_mean_and_std(training_images_path, transform):
     train_data = SegmentationDataset(image_paths_file=training_images_path, transform=transform, binarization_threshold=0.1)
@@ -18,3 +17,11 @@ def calculate_mean_and_std(training_images_path, transform):
         stdTotal = stdTotal + std
 
     return meanTotal/size, stdTotal/size
+
+
+def copyFile(source, destination):
+    shutil.copyfile(source, destination)
+
+
+def copyDirectory(source, destination):
+    shutil.copytree(source, destination)
