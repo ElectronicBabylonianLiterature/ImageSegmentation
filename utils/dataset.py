@@ -8,10 +8,11 @@ from torchvision.transforms import transforms
 
 
 class SegmentationDataset(Dataset):
-    def __init__(self, image_paths_file,  binarization, transform=None, normalize=None):
+    def __init__(self, image_paths_file,  resize, binarization, transform=None, normalize=None):
         self.root_dir_name = os.path.dirname(image_paths_file)
         self.transform = transform
 
+        self.resize= resize
         self.binarization = binarization
         self.normalize= normalize
 
@@ -43,8 +44,8 @@ class SegmentationDataset(Dataset):
         toTensor = transforms.ToTensor()
         img = toTensor(img)
 
-        binarize_before_transformations = isinstance(self.binarization, float)
-        if binarize_before_transformations:
+        binarize_before_rescale = isinstance(self.binarization, float)
+        if binarize_before_rescale:
             target = Image.open(os.path.join(self.root_dir_name, "targets", f"{img_id}_GT0.png")).convert("L").point(lambda p: 0 if p < self.binarization * 255 else 1)
         else:
             target = Image.open(os.path.join(self.root_dir_name, "targets", f"{img_id}_GT0.png")).convert("L")
@@ -52,17 +53,17 @@ class SegmentationDataset(Dataset):
         target = np.array([target])
         target_labels = torch.from_numpy(target.copy()).float()
         result = torch.stack([img, target_labels])
-        if self.transform and not binarize_before_transformations:
-            result = self.transform.transforms[0](result)
-            binarized_labels = self.transform.transforms[1](result[1])
+        result = self.resize(result)
+        if self.transform and not binarize_before_rescale:
+            binarized_labels = self.binarization(result[1])
             result = torch.stack([result[0], binarized_labels])
-            result = transforms.Compose(self.transform.transforms[2:])(result)
+            result = self.transform(result)
 
         elif self.transform:
             result = self.transform(result)
 
         training_image = self.normalize(result[0]) if self.normalize else result[0]
-        ground_truth =  result[1]
+        ground_truth = result[1]
 
         return training_image, ground_truth, img_id
 

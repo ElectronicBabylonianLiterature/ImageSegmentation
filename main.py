@@ -23,7 +23,7 @@ resize_value = 800
 resize = transforms.Resize(size=resize_value)
 
 dynamic_resize = DynamicResize(size=((1000, 1), (2000, 2), (3000, 3), (4000, 4),  (float("inf"),5)))
-mean, std = calculate_mean_and_std(training_images_path=f"{data_root}/train.txt", transform=resize)
+mean, std = calculate_mean_and_std(SegmentationDataset(image_paths_file=f"{data_root}/train.txt",  resize=dynamic_resize, binarization=0.1))
 
 binarization_threshold = 0.1
 binarization = BinarizationTransform(binarization_threshold)
@@ -35,7 +35,7 @@ normalize = transforms.Normalize(mean, std)
 
 hparams = {
     "batchSize": 1,
-    "epochs": 500,
+    "epochs": 600,
     "lr": 0.001,
     "resizeValue": resize_value,
     "resizeImages": str(resize),
@@ -43,17 +43,17 @@ hparams = {
     "mean": mean.item(),
     "std": std.item(),
     "binarization_threshold": binarization_threshold,
-    "binarize_after_transformations": True if binarization is not None else False,
+    "binarize_after_resizing": True if binarization is not None else False,
     "accumulateGradients": 1,
 }
 
-train_data = SegmentationDataset(image_paths_file=f"{data_root}/train.txt",  binarization=binarization, transform=transform, normalize=normalize)
-val_data = SegmentationDataset(image_paths_file=f"{data_root}/test.txt",  binarization=binarization, transform=resize, normalize=normalize)
-test_data = SegmentationDataset(image_paths_file=f"{data_root}/test.txt",  binarization=binarization, transform=resize, normalize=normalize)
+train_data = SegmentationDataset(image_paths_file=f"{data_root}/train.txt",  resize=dynamic_resize, binarization=binarization, transform=transform, normalize=normalize)
+val_data = SegmentationDataset(image_paths_file=f"{data_root}/test.txt",  resize=dynamic_resize, binarization=binarization, transform=resize, normalize=normalize)
+test_data = SegmentationDataset(image_paths_file=f"{data_root}/test.txt",  resize=dynamic_resize, binarization=binarization, transform=resize, normalize=normalize)
 
 
-list(map(lambda batch: print(batch[0].shape), train_data))
-save_images_from_tensors(f"{data_root}/train.txt", "images", transform, normalize, 6, binarization)
+#list(map(lambda batch: print(batch[0].shape), train_data))
+#save_images_from_tensors(train_data, "images", 6, binarization)
 
 hparams["trainSize"] = len(train_data)
 hparams["testSize"] = len(test_data)
@@ -77,7 +77,7 @@ def logSomeTrainingImages():
         logger.experiment.add_image(f"train_samples/sample-{img_id}/training", img)
         logger.experiment.add_image(f"train_samples/sample-{img_id}/truth", target)
 
-"""
+
 if __name__ == '__main__':
     logSomeTrainingImages()
     copyCodeToLogs()
@@ -103,5 +103,5 @@ if __name__ == '__main__':
         print("Interrupted")
         if trainer and model:
             trainer.test(test_dataloaders=DataLoader(val_data, batch_size=1, shuffle=False))
-"""
+
 

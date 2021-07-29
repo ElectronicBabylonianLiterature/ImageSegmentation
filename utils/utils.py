@@ -6,9 +6,7 @@ import os
 from utils.dataset import SegmentationDataset
 
 
-def calculate_mean_and_std(training_images_path, transform, binarization=0.1):
-    train_data = SegmentationDataset(image_paths_file=training_images_path, transform=transform, binarization=0.1)
-
+def calculate_mean_and_std(train_data):
     size = len(train_data)
     meanTotal = 0
     stdTotal = 0

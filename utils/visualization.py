@@ -9,7 +9,7 @@ from utils.custom_transforms import BinarizationTransform
 from utils.dataset import SegmentationDataset
 
 
-def save_images_from_tensors(image_paths_file, threshold_folder, transform, normalize, num_example_imgs=10, binarization_threshold=0.1):
+def save_images_from_tensors(data, threshold_folder, num_example_imgs=10, binarization_threshold=0.1):
     if not os.path.exists(threshold_folder):
         os.mkdir(threshold_folder)
     threshold = []
@@ -21,14 +21,14 @@ def save_images_from_tensors(image_paths_file, threshold_folder, transform, norm
         threshold = [binarization_threshold.threshold]
 
     for i in threshold:
-        train_data = SegmentationDataset(image_paths_file=image_paths_file,  binarization=binarization_threshold, transform=transform, normalize=normalize)
+
         path_for_img = f"{threshold_folder}/binarization_threshold_{i}"
 
         if os.path.exists(path_for_img):
             shutil.rmtree(path_for_img)
         os.mkdir(path_for_img)
 
-        for counter, (img, target, img_id) in enumerate(train_data[:num_example_imgs]):
+        for counter, (img, target, img_id) in enumerate(data[:num_example_imgs]):
             saveImageFromTensor(img,  img_id ,path_for_img, )
             saveImageFromTensor(target, f"{img_id}_GT0", path_for_img, )
             print("Counter", counter)
