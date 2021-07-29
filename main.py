@@ -14,6 +14,10 @@ from utils.dataset import SegmentationDataset
 from utils.utils import calculate_mean_and_std, copy_file, copy_directory
 from utils.visualization import save_images_from_tensors
 
+def save_images():
+    list(map(lambda batch: print(batch[0].shape), train_data))
+    save_images_from_tensors(train_data, "images", 6, binarization)
+
 root = os.path.dirname(os.path.abspath(__file__))
 data_root = os.path.join(root, 'segmentation_data')
 
@@ -27,9 +31,9 @@ mean, std = calculate_mean_and_std(SegmentationDataset(image_paths_file=f"{data_
 
 binarization_threshold = 0.1
 binarization = BinarizationTransform(binarization_threshold)
-random_elastic = transforms.RandomApply([ElasticTransform()], 1)
+random_elastic = transforms.RandomApply([ElasticTransform()], 0.5)
 random_affine = transforms.RandomApply([transforms.RandomAffine(degrees=(-15, 15), scale=(0.7, 1))], 0.3)
-transform = transforms.Compose([random_affine , random_elastic])
+transform = transforms.Compose([random_affine, random_elastic])
 normalize = transforms.Normalize(mean, std)
 
 
@@ -48,12 +52,10 @@ hparams = {
 }
 
 train_data = SegmentationDataset(image_paths_file=f"{data_root}/train.txt",  resize=dynamic_resize, binarization=binarization, transform=transform, normalize=normalize)
-val_data = SegmentationDataset(image_paths_file=f"{data_root}/test.txt",  resize=dynamic_resize, binarization=binarization, transform=resize, normalize=normalize)
-test_data = SegmentationDataset(image_paths_file=f"{data_root}/test.txt",  resize=dynamic_resize, binarization=binarization, transform=resize, normalize=normalize)
+val_data = SegmentationDataset(image_paths_file=f"{data_root}/test.txt",  resize=dynamic_resize, binarization=binarization, normalize=normalize)
+test_data = SegmentationDataset(image_paths_file=f"{data_root}/test.txt",  resize=dynamic_resize, binarization=binarization, normalize=normalize)
 
 
-#list(map(lambda batch: print(batch[0].shape), train_data))
-#save_images_from_tensors(train_data, "images", 6, binarization)
 
 hparams["trainSize"] = len(train_data)
 hparams["testSize"] = len(test_data)
@@ -79,6 +81,10 @@ def logSomeTrainingImages():
 
 
 if __name__ == '__main__':
+
+    #save_images()
+
+
     logSomeTrainingImages()
     copyCodeToLogs()
     trainer = None
