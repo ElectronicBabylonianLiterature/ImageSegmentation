@@ -6,12 +6,12 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-from main import resize
 from network.unet_model import UNet
+from utils.custom_transforms import BinarizationTransform
 from utils.dataset import SegmentationDataset
 from utils.utils import get_file_containing_word
 
-unet_version = "version_6"
+unet_version = "version_0"
 log_directory = f"logs/u_net/{unet_version}"
 
 
@@ -23,11 +23,13 @@ hparams = yaml.load(open(hparams_yaml))
 root = os.path.dirname(os.path.abspath(__file__))
 data_root = os.path.join(root, 'segmentation_data')
 
-test_data = SegmentationDataset(image_paths_file=f"{data_root}/test.txt", binarization_threshold=hparams["binarization_threshold"], transform=transforms.Resize(hparams["resizeValue"]), normalize=transforms.Normalize(hparams["mean"], hparams["std"]))
+resize=transforms.Resize(size=500)
+
+test_data = SegmentationDataset(image_paths_file=f"{data_root}/test.txt", binarization=BinarizationTransform(hparams["binarization_threshold"]), resize=resize)
 test_loader = DataLoader(test_data, batch_size=1, shuffle=False)
 
 checkpoints_directory = f"{log_directory}/checkpoints"
-checkpoint = get_file_containing_word(checkpoints_directory, "best")
+checkpoint = get_file_containing_word(checkpoints_directory, "499")
 model = UNet.load_from_checkpoint(f"{checkpoints_directory}/{checkpoint}", n_channels=1, n_classes=1, lr=hparams["lr"])
 
 trainer = pl.Trainer(gpus=1, precision=16, max_epochs=hparams["epochs"], logger=logger)

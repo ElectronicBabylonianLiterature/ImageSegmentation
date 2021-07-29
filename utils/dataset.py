@@ -54,12 +54,10 @@ class SegmentationDataset(Dataset):
         target_labels = torch.from_numpy(target.copy()).float()
         result = torch.stack([img, target_labels])
         result = self.resize(result)
-        if self.transform and not binarize_before_rescale:
+        if not binarize_before_rescale:
             binarized_labels = self.binarization(result[1])
             result = torch.stack([result[0], binarized_labels])
-            result = self.transform(result)
-
-        elif self.transform:
+        if self.transform:
             result = self.transform(result)
 
         training_image = self.normalize(result[0]) if self.normalize else result[0]

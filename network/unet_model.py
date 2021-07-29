@@ -1,17 +1,17 @@
 import pytorch_lightning as pl
 from torch import optim, sigmoid
 from torch.nn import BCEWithLogitsLoss
-from torchmetrics.functional import dice_score, accuracy, precision, recall, f1, iou
+from torchmetrics.functional import accuracy, precision, recall, f1, iou
 
 from .unet_parts import *
 
 
 class UNet(pl.LightningModule):
-    def __init__(self, n_channels, n_classes, lr, bilinear=True):
+    def __init__(self, n_channels, n_classes, lr, loss_weight, bilinear=True):
         super(UNet, self).__init__()
 
         self.lr = lr
-        self.loss = BCEWithLogitsLoss()
+        self.loss = BCEWithLogitsLoss(weight=loss_weight)
 
         self.n_channels = n_channels
         self.n_classes = n_classes
@@ -48,9 +48,10 @@ class UNet(pl.LightningModule):
 
 
     def configure_optimizers(self):
-        optimizer = optim.RMSprop(self.parameters(), lr=self.lr, weight_decay=1e-8, momentum=0.9)
+        optimizer = optim.RMSprop(self.parameters(), lr=self.lr)
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer)
-        return {"optimizer": optimizer, "lr_scheduler": {"scheduler": scheduler, "monitor": "Loss/val"}}
+        #lr_scheduler = {"scheduler": scheduler, "monitor": "Loss/val"}
+        return {"optimizer": optimizer}
 
     def training_step(self, batch, batch_idx):
         x, y, _ = batch
@@ -69,19 +70,20 @@ class UNet(pl.LightningModule):
         loss = self.loss(y_hat, y)
         self.log("Loss/train", loss, on_step=False, on_epoch=True)
 
-        """
+
         #takes around 1GB VRAM
         acc_score = self.calculate_metric(batch, accuracy, batch_idx)
         recall_score = self.calculate_metric(batch, recall, batch_idx)
         precision_score = self.calculate_metric(batch, precision, batch_idx)
         f1_score = self.calculate_metric(batch, f1, batch_idx)
         self.log_dict({"Accuracy/train": acc_score, "Recall/train": recall_score, "Precision/train": precision_score, "F1/train": f1_score}, on_step=False, on_epoch=True)
-        """
+
         return loss
 
     def calculate_metric(self, batch, metric, batch_idx=None):
         x, y, _ = batch
-        prediction = self.predict_step((x,None, None), batch_idx)
+        prediction = self.predict_step((x, None, None), batch_idx)
+        z = y.int() > 0
         return metric(prediction, y.int())
 
     def validation_step(self, batch, batch_idx):
@@ -89,6 +91,7 @@ class UNet(pl.LightningModule):
         y_hat = self(x)
         val_loss = self.loss(y_hat, y)
         self.log("Loss/val", val_loss, on_step=False, on_epoch=True)
+        self.log("F1/val", self.calculate_metric(batch, f1, batch_idx), on_step=False, on_epoch=True)
         return val_loss
 
     def test_step(self, batch, batch_idx):

@@ -11,7 +11,7 @@ from torchvision import transforms
 from network.unet_model import UNet
 from utils.custom_transforms import ElasticTransform, DynamicResize, BinarizationTransform
 from utils.dataset import SegmentationDataset
-from utils.utils import calculate_mean_and_std, copy_file, copy_directory
+from utils.utils import calculate_mean_and_std, copy_file, copy_directory, calculate_class_sizes
 from utils.visualization import save_images_from_tensors
 
 def save_images():
@@ -23,18 +23,24 @@ data_root = os.path.join(root, 'segmentation_data')
 
 logger = TensorBoardLogger("logs", name="u_net", log_graph=True)
 
-resize_value = 800
+resize_value = 700
 resize = transforms.Resize(size=resize_value)
-
-dynamic_resize = DynamicResize(size=((1000, 1), (2000, 2), (3000, 3), (4000, 4),  (float("inf"),5)))
-mean, std = calculate_mean_and_std(SegmentationDataset(image_paths_file=f"{data_root}/train.txt",  resize=dynamic_resize, binarization=0.1))
 
 binarization_threshold = 0.1
 binarization = BinarizationTransform(binarization_threshold)
+
+"""
+resize_value = ((1000, 1), (2000, 2), (3000, 3), (4000, 4), (float("inf"), 5))
+resize = DynamicResize(size=resize_value)
+"""
+
+statistics_data_set = SegmentationDataset(image_paths_file=f"{data_root}/train.txt", resize=resize, binarization=binarization)
+mean, std = calculate_mean_and_std(statistics_data_set)
+
 random_elastic = transforms.RandomApply([ElasticTransform()], 0.5)
-random_affine = transforms.RandomApply([transforms.RandomAffine(degrees=(-15, 15), scale=(0.7, 1))], 0.3)
-transform = transforms.Compose([random_affine, random_elastic])
-normalize = transforms.Normalize(mean, std)
+random_affine = transforms.RandomApply([transforms.RandomAffine(degrees=0, scale=(1, 1.75))], 0.5)
+transform = transforms.Compose([random_affine])
+#normalize = transforms.Normalize(mean, std)
 
 
 hparams = {
@@ -43,19 +49,23 @@ hparams = {
     "lr": 0.001,
     "resizeValue": resize_value,
     "resizeImages": str(resize),
-    "transformations": str(transform) + " Normalize(mean, std)",
+    "transformations": str(transform),
     "mean": mean.item(),
     "std": std.item(),
     "binarization_threshold": binarization_threshold,
     "binarize_after_resizing": True if binarization is not None else False,
-    "accumulateGradients": 1,
+    "accumulateGradients": 8,
 }
 
-train_data = SegmentationDataset(image_paths_file=f"{data_root}/train.txt",  resize=dynamic_resize, binarization=binarization, transform=transform, normalize=normalize)
-val_data = SegmentationDataset(image_paths_file=f"{data_root}/test.txt",  resize=dynamic_resize, binarization=binarization, normalize=normalize)
-test_data = SegmentationDataset(image_paths_file=f"{data_root}/test.txt",  resize=dynamic_resize, binarization=binarization, normalize=normalize)
+train_data = SegmentationDataset(image_paths_file=f"{data_root}/train.txt", resize=resize, binarization=binarization, transform=transform)
+val_data = SegmentationDataset(image_paths_file=f"{data_root}/test.txt", resize=resize, binarization=binarization)
+test_data = SegmentationDataset(image_paths_file=f"{data_root}/test.txt", resize=resize, binarization=binarization)
 
 
+
+
+class_1, background = calculate_class_sizes(train_data)
+hparams["lossWeight"] =  int(background/class_1)
 
 hparams["trainSize"] = len(train_data)
 hparams["testSize"] = len(test_data)
@@ -81,10 +91,7 @@ def logSomeTrainingImages():
 
 
 if __name__ == '__main__':
-
     #save_images()
-
-
     logSomeTrainingImages()
     copyCodeToLogs()
     trainer = None
@@ -95,7 +102,7 @@ if __name__ == '__main__':
                                           auto_insert_metric_name=False)
         checkpoint_last_epoch = ModelCheckpoint(filename="epoch={epoch:02d}-val_loss=val_loss{val/loss:.2f}",
                                                 auto_insert_metric_name=False)
-        model = UNet(1, 1, hparams["lr"])
+        model = UNet(1, 1, hparams["lr"], hparams["lossWeight"])
         trainer = pl.Trainer(accumulate_grad_batches=hparams["accumulateGradients"], gpus=1, max_epochs=hparams["epochs"], logger=logger,
                              precision=16, callbacks=[checkpoint_loss, checkpoint_last_epoch])
         logger.log_hyperparams(hparams)
