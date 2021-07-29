@@ -10,7 +10,7 @@ from torchvision import transforms
 
 from network.unet_model import UNet
 from utils.dataset import SegmentationDataset
-from utils.utils import calculate_mean_and_std, copyFile, copyDirectory
+from utils.utils import calculate_mean_and_std, copy_file, copy_directory
 from utils.visualization import save_images_from_tensors
 
 root = os.path.dirname(os.path.abspath(__file__))
@@ -18,7 +18,8 @@ data_root = os.path.join(root, 'segmentation_data')
 
 logger = TensorBoardLogger("logs", name="u_net", log_graph=True)
 
-resize = transforms.Resize(size=800)
+resize_value = 800
+resize = transforms.Resize(size=resize_value)
 mean, std = calculate_mean_and_std(training_images_path=f"{data_root}/train.txt", transform=resize)
 
 
@@ -31,7 +32,8 @@ hparams = {
     "batchSize": 1,
     "epochs": 500,
     "lr": 0.001,
-    "resizeImages": resize,
+    "resizeValue": resize_value,
+    "resizeImages": str(resize),
     "transformations": str(transform) + " Normalize(mean, std)",
     "mean": mean.item(),
     "std": std.item(),
@@ -55,23 +57,12 @@ print("Test size: %i" % len(test_data))
 print("Img size: ", train_data[0][0].size())
 print("Segmentation size: ", train_data[0][1].size())
 
-def train():
-    checkpoint_loss = ModelCheckpoint(monitor='Loss/val', filename="best_val_loss-epoch={epoch:02d}-val_loss=val_loss{val/loss:.2f}",auto_insert_metric_name=False)
-    checkpoint_last_epoch = ModelCheckpoint(filename="epoch={epoch:02d}-val_loss=val_loss{val/loss:.2f}",auto_insert_metric_name=False)
-    model = UNet(1, 1, hparams["lr"])
-    trainer = pl.Trainer(accumulate_grad_batches=8, gpus=1, max_epochs=hparams["epochs"], logger=logger, precision=16, callbacks=[checkpoint_loss, checkpoint_last_epoch])
-    logger.log_hyperparams(hparams)
-    trainer.fit(model, DataLoader(train_data, batch_size=hparams["batchSize"], num_workers=8, pin_memory=True), DataLoader(val_data, batch_size=hparams["batchSize"], num_workers=8, pin_memory=True))
-
-    trainer.test(model, DataLoader(val_data, batch_size=1, shuffle=False, num_workers=8))
-    torch.save(model.state_dict(), f"{logger.log_dir}/model.pt")
-    print("Done")
 
 def copyCodeToLogs():
     os.mkdir(f"{logger.log_dir}/code")
     script_name = os.path.basename(__file__)
-    copyFile(script_name, f"{logger.log_dir}/code/{script_name}")
-    copyDirectory("network", f"{logger.log_dir}/code/network")
+    copy_file(script_name, f"{logger.log_dir}/code/{script_name}")
+    copy_directory("network", f"{logger.log_dir}/code/network")
 
 
 def logSomeTrainingImages():
@@ -80,12 +71,31 @@ def logSomeTrainingImages():
         logger.experiment.add_image(f"train_samples/sample-{img_id}/training", img)
         logger.experiment.add_image(f"train_samples/sample-{img_id}/truth", target)
 
-logSomeTrainingImages()
-copyCodeToLogs()
-train()
 
+if __name__ == '__main__':
+    logSomeTrainingImages()
+    copyCodeToLogs()
+    trainer = None
+    model = None
+    try:
+        checkpoint_loss = ModelCheckpoint(monitor='Loss/val',
+                                          filename="best_val_loss-epoch={epoch:02d}-val_loss=val_loss{val/loss:.2f}",
+                                          auto_insert_metric_name=False)
+        checkpoint_last_epoch = ModelCheckpoint(filename="epoch={epoch:02d}-val_loss=val_loss{val/loss:.2f}",
+                                                auto_insert_metric_name=False)
+        model = UNet(1, 1, hparams["lr"])
+        trainer = pl.Trainer(accumulate_grad_batches=8, gpus=1, max_epochs=hparams["epochs"], logger=logger,
+                             precision=16, callbacks=[checkpoint_loss, checkpoint_last_epoch], overfit_batches=2)
+        logger.log_hyperparams(hparams)
+        trainer.fit(model, DataLoader(train_data, batch_size=hparams["batchSize"], num_workers=8, pin_memory=True),
+                    DataLoader(val_data, batch_size=hparams["batchSize"], num_workers=8, pin_memory=True))
 
+        trainer.test(test_dataloaders=DataLoader(val_data, batch_size=1, shuffle=False, num_workers=8))
 
-
+        print("Done")
+    except KeyboardInterrupt:
+        print("Interrupted")
+        if trainer and model:
+            trainer.test(test_dataloaders=DataLoader(val_data, batch_size=1, shuffle=False, num_workers=8))
 
 

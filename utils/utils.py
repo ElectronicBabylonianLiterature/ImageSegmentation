@@ -1,6 +1,7 @@
 import shutil
 
 import torch
+import os
 
 from utils.dataset import SegmentationDataset
 
@@ -19,9 +20,15 @@ def calculate_mean_and_std(training_images_path, transform):
     return meanTotal/size, stdTotal/size
 
 
-def copyFile(source, destination):
+def copy_file(source, destination):
     shutil.copyfile(source, destination)
 
 
-def copyDirectory(source, destination):
+def copy_directory(source, destination):
     shutil.copytree(source, destination)
+
+def get_file_containing_word(directory, name):
+    dir = os.listdir(directory)
+    for fname in dir:
+        if name in fname:
+            return fname
