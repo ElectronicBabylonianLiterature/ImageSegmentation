@@ -1,19 +1,27 @@
 import os
 import shutil
+from collections import Sequence
 
 import torch
 from matplotlib import pyplot as plt
 
+from utils.custom_transforms import BinarizationTransform
 from utils.dataset import SegmentationDataset
 
 
-def save_images_from_tensors(image_paths_file, threshold_folder, transform, normalize, num_example_imgs=10):
+def save_images_from_tensors(image_paths_file, threshold_folder, transform, normalize, num_example_imgs=10, binarization_threshold=0.1):
     if not os.path.exists(threshold_folder):
         os.mkdir(threshold_folder)
-    #thresholds = np.linspace(0.005 ,0.2, 10, False)
-    thresholds = [0.1]
-    for i in thresholds:
-        train_data = SegmentationDataset(image_paths_file=image_paths_file,  binarization_threshold=i, transform=transform, normalize=normalize)
+    threshold = []
+    if isinstance(binarization_threshold, float):
+        threshold = [binarization_threshold]
+    elif isinstance(binarization_threshold, Sequence):
+        threshold = binarization_threshold
+    elif isinstance(binarization_threshold, BinarizationTransform):
+        threshold = [binarization_threshold.threshold]
+
+    for i in threshold:
+        train_data = SegmentationDataset(image_paths_file=image_paths_file,  binarization=binarization_threshold, transform=transform, normalize=normalize)
         path_for_img = f"{threshold_folder}/binarization_threshold_{i}"
 
         if os.path.exists(path_for_img):

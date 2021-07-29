@@ -11,7 +11,7 @@ from network.unet_model import UNet
 from utils.dataset import SegmentationDataset
 from utils.utils import get_file_containing_word
 
-unet_version = "version_5"
+unet_version = "version_6"
 log_directory = f"logs/u_net/{unet_version}"
 
 
@@ -27,10 +27,10 @@ test_data = SegmentationDataset(image_paths_file=f"{data_root}/test.txt", binari
 test_loader = DataLoader(test_data, batch_size=1, shuffle=False)
 
 checkpoints_directory = f"{log_directory}/checkpoints"
-checkpoint = get_file_containing_word(checkpoints_directory, "best_val_loss")
+checkpoint = get_file_containing_word(checkpoints_directory, "best")
 model = UNet.load_from_checkpoint(f"{checkpoints_directory}/{checkpoint}", n_channels=1, n_classes=1, lr=hparams["lr"])
 
-trainer = pl.Trainer(gpus=1, max_epochs=hparams["epochs"], logger=logger, precision=16)
+trainer = pl.Trainer(gpus=1, precision=16, max_epochs=hparams["epochs"], logger=logger)
 trainer.test(model, test_loader)
 
 
